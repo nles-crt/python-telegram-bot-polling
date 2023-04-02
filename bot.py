@@ -7,11 +7,27 @@ import secrets
 import string
 import aiohttp
 import datetime
+import re
 
-TOKEN = '' #设置bot密钥
-
+TOKEN = ''   #机器人密钥
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
+
+def filter_dangerous_chars(text):
+    if text is None:
+        return ''
+
+    # 定义危险字符集合
+    dangerous_chars = {'<', '>', '&', '"', '\''}
+    
+    # 替换字符串中的危险字符
+    for char in text:
+        if char in dangerous_chars:
+            text = text.replace(char, '')
+    
+    # 返回过滤后的字符串
+    return text
+
 
 def generate_promo_id():
     alphabet = string.ascii_uppercase + string.digits
@@ -33,7 +49,15 @@ async def getqqinfo(qq):
             else:
                 return '获取失败'
 
+def filter_alphanumeric_regex(input_string):
+    # Define a regular expression that matches all non-alphanumeric characters, including "/"
+    regex = r"[^a-zA-Z0-9/]"
 
+    # Use sub() function to replace all matched characters with an empty string
+    filtered_string = re.sub(regex, "", input_string)
+
+    # Return the filtered string
+    return filtered_string
 conn = sqlite3.connect("promote_users.db")
 cur = conn.cursor()
 cur.execute("""
@@ -57,8 +81,12 @@ async def start(message: types.Message):
         await message.reply("You have already registered. Use /my or /help to see your chances.")
         return
 
-    # Check if referrer ID is valid
-    referrer_id = message.get_args()
+    # Check if referrer ID is valid ,Filtering Dangerous Characters
+    referrer_id = filter_alphanumeric_regex(message.get_args())
+    print(referrer_id)
+    if len(referrer_id) >= 9:
+        print('危险用户：' + str(message.from_user.id) + ' 危险字符：' + message.text)
+        return
     if referrer_id:
         cur.execute("SELECT * FROM users WHERE promo_id=?", (referrer_id,))
         referrer = cur.fetchone()
@@ -70,16 +98,16 @@ async def start(message: types.Message):
             return
         else:
             # Increment referral's chances
-            cur.execute("UPDATE users SET free_chances=free_chances+5 WHERE user_id=?", (referrer[0],))
+            cur.execute("UPDATE users SET free_chances=free_chances+50 WHERE user_id=?", (referrer[0],))
             
             conn.commit()
 
     # Add user to database
-    first_name = message.from_user.first_name
-    last_name = message.from_user.last_name
+    first_name = filter_dangerous_chars(message.from_user.first_name)
+    last_name = filter_dangerous_chars(message.from_user.last_name)
     promo_id = generate_promo_id()
     cur.execute("INSERT INTO users (user_id, promo_id, first_name, last_name) VALUES (?, ?, ?, ?)", (message.from_user.id, promo_id, first_name, last_name))
-    cur.execute("UPDATE users SET free_chances=free_chances+2 WHERE user_id=?", (message.from_user.id,))
+    cur.execute("UPDATE users SET free_chances=free_chances+20 WHERE user_id=?", (message.from_user.id,))
     conn.commit()
 
     # Send welcome message
@@ -209,17 +237,15 @@ async def qq(message: types.Message):
     if not non_zero_fields:
         await message.reply("You have no free chances left. Please try again later.")
         return
-    chosen_field = random.choice(non_zero_fields)
-    cur.execute(f"UPDATE users SET {chosen_field}={chosen_field}-1 WHERE user_id=?", (message.from_user.id,))
-    conn.commit()
-
     # 调用异步函数获取 QQ 号码信息
     qq_number = message.get_args()
     if not qq_number:
         await message.reply("Please provide a QQ number.")
         return
-
     # 发送询问按钮
+    chosen_field = random.choice(non_zero_fields)
+    cur.execute(f"UPDATE users SET {chosen_field}={chosen_field}-1 WHERE user_id=?", (message.from_user.id,))
+    conn.commit()
     keyboard = types.InlineKeyboardMarkup()
     yes_button = types.InlineKeyboardButton(text="Yes", callback_data="qq_info_yes")
     no_button = types.InlineKeyboardButton(text="No", callback_data="qq_info_no")
@@ -229,7 +255,6 @@ async def qq(message: types.Message):
 @dp.callback_query_handler(lambda c: c.data == "qq_info_yes")
 async def process_callback_qq_info_yes(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-
     # 继续查询 QQ 号码信息
     qq_number = callback_query.message.text.split(" ")[-1][:-1]
     result = await getqqinfo(qq_number)
