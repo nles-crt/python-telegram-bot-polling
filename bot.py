@@ -8,7 +8,7 @@ import string
 import aiohttp
 import datetime
 
-TOKEN = ''
+TOKEN = '' #设置机器人密钥
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -128,6 +128,7 @@ async def show_help_message(message: types.Message):
     help_text += "/help - 显示此帮助信息\n\n"
     help_text += "要使用 /start 命令，请输入该命令，后面跟着推广 ID（如果有）。例如：/start ABC123\n"
     help_text += "要使用 /checkin 命令，请输入该命令。您每天只能打卡一次。\n"
+    help_text += "/promo - 推广机器人获取免费次数\n"
     help_text += "要使用 /my 命令，请输入该命令。这将显示您的用户 ID、推广 ID、免费机会、每日机会和最后打卡时间。\n"
     help_text += "/qq 命令，后面跟着QQ。例如：/qq 10001\n"
     help_text += "要使用 /help 命令，请输入该命令。这将显示此帮助信息。\n"
