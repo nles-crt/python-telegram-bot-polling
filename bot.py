@@ -8,7 +8,7 @@ import string
 import aiohttp
 import datetime
 
-TOKEN = '' #设置机器人密钥
+TOKEN = '' #设置bot密钥
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -79,7 +79,6 @@ async def start(message: types.Message):
     last_name = message.from_user.last_name
     promo_id = generate_promo_id()
     cur.execute("INSERT INTO users (user_id, promo_id, first_name, last_name) VALUES (?, ?, ?, ?)", (message.from_user.id, promo_id, first_name, last_name))
-    cur.execute("UPDATE users SET free_chances=free_chances+3 WHERE user_id=?", (referrer[0],))
     conn.commit()
 
     # Send welcome message
