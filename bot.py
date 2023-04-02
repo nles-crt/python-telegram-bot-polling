@@ -70,7 +70,7 @@ async def start(message: types.Message):
             return
         else:
             # Increment referral's chances
-            cur.execute("UPDATE users SET free_chances=free_chances+1 WHERE user_id=?", (referrer[0],))
+            cur.execute("UPDATE users SET free_chances=free_chances+5 WHERE user_id=?", (referrer[0],))
             
             conn.commit()
 
@@ -79,11 +79,12 @@ async def start(message: types.Message):
     last_name = message.from_user.last_name
     promo_id = generate_promo_id()
     cur.execute("INSERT INTO users (user_id, promo_id, first_name, last_name) VALUES (?, ?, ?, ?)", (message.from_user.id, promo_id, first_name, last_name))
+    cur.execute("UPDATE users SET free_chances=free_chances+2 WHERE user_id=?", (message.from_user.id,))
     conn.commit()
 
     # Send welcome message
     if referrer_id:
-        await message.reply(f"Welcome to the game! You have been referred by {referrer[2]} {referrer[3]}. Your referral code is {promo_id}. You have 1 extra chance to play.")
+        await message.reply(f"Welcome to the game! You have been referred by {referrer[2]}. Your referral code is {promo_id}. You have 1 extra chance to play.")
     else:
         await message.reply(f"Welcome to the game! Your referral code is {promo_id}.")
         
@@ -160,7 +161,9 @@ async def show_user_info(message: types.Message):
 async def promo_button(message: types.Message):
     user_id = message.from_user.id
     cur.execute("SELECT promo_id FROM users WHERE user_id=?", (user_id,))
+    print(cur.execute)
     promo_id = cur.fetchone()[0]  # 获取用户的推广ID
+
     if not promo_id:
         await message.reply("您还没有注册。请使用 /start 命令进行注册。")
         return
