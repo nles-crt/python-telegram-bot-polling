@@ -8,24 +8,18 @@ import string
 import aiohttp
 import datetime
 import re
-
-TOKEN = ''   #机器人密钥
+TOKEN = '' # your bot token
+bot_id = '' #BOT name
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
 def filter_dangerous_chars(text):
     if text is None:
         return ''
-
-    # 定义危险字符集合
     dangerous_chars = {'<', '>', '&', '"', '\''}
-    
-    # 替换字符串中的危险字符
     for char in text:
         if char in dangerous_chars:
             text = text.replace(char, '')
-    
-    # 返回过滤后的字符串
     return text
 
 
@@ -47,16 +41,11 @@ async def getqqinfo(qq):
                 data = await response.json()
                 return data_dict(data)
             else:
-                return '获取失败'
+                return 'DPROP'
 
 def filter_alphanumeric_regex(input_string):
-    # Define a regular expression that matches all non-alphanumeric characters, including "/"
     regex = r"[^a-zA-Z0-9/]"
-
-    # Use sub() function to replace all matched characters with an empty string
     filtered_string = re.sub(regex, "", input_string)
-
-    # Return the filtered string
     return filtered_string
 conn = sqlite3.connect("promote_users.db")
 cur = conn.cursor()
@@ -72,20 +61,17 @@ cur.execute("""
     )
 """)
 conn.commit()
+
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    # Check if user is already registered
     cur.execute("SELECT * FROM users WHERE user_id=?", (message.from_user.id,))
     user = cur.fetchone()
     if user:
         await message.reply("You have already registered. Use /my or /help to see your chances.")
         return
-
-    # Check if referrer ID is valid ,Filtering Dangerous Characters
     referrer_id = filter_alphanumeric_regex(message.get_args())
-    print(referrer_id)
     if len(referrer_id) >= 9:
-        print('危险用户：' + str(message.from_user.id) + ' 危险字符：' + message.text)
+        print('Dangerous user: ' + str(message.from_user.id) + ' Dangerous character: ' + message.text)
         return
     if referrer_id:
         cur.execute("SELECT * FROM users WHERE promo_id=?", (referrer_id,))
@@ -97,26 +83,18 @@ async def start(message: types.Message):
             await message.reply("You cannot use your own referral code. Please enter a valid referral code or leave it blank.")
             return
         else:
-            # Increment referral's chances
             cur.execute("UPDATE users SET free_chances=free_chances+50 WHERE user_id=?", (referrer[0],))
-            
             conn.commit()
-
-    # Add user to database
     first_name = filter_dangerous_chars(message.from_user.first_name)
     last_name = filter_dangerous_chars(message.from_user.last_name)
     promo_id = generate_promo_id()
     cur.execute("INSERT INTO users (user_id, promo_id, first_name, last_name) VALUES (?, ?, ?, ?)", (message.from_user.id, promo_id, first_name, last_name))
     cur.execute("UPDATE users SET free_chances=free_chances+20 WHERE user_id=?", (message.from_user.id,))
     conn.commit()
-
-    # Send welcome message
     if referrer_id:
         await message.reply(f"Welcome to the game! You have been referred by {referrer[2]}. Your referral code is {promo_id}. You have 1 extra chance to play.")
     else:
-        await message.reply(f"Welcome to the game! Your referral code is {promo_id}.")
-        
-
+        await message.reply(f"Welcome to the game! Your referral code is {promo_id}.")  
 
 @dp.message_handler(commands=["checkin"])
 async def daily_check_in(message: types.Message):
@@ -125,43 +103,36 @@ async def daily_check_in(message: types.Message):
     if not user:
         await message.reply("You have not registered. Please use /start to register.")
         return
-    
-    # 获取上次签到时间和当前时间
     last_check_in = user[4]
     if last_check_in == 0:
-        last_check_in = datetime.datetime(2000, 1, 1) # 设置一个默认日期时间
+        last_check_in = datetime.datetime(2000, 1, 1)
     else:
         last_check_in = datetime.datetime.strptime(str(last_check_in), "%Y-%m-%d %H:%M:%S")
     current_time = datetime.datetime.now().timestamp()
-    
-    # 检查是否已经签到过了
     if last_check_in.date() == datetime.datetime.fromtimestamp(current_time).date():
         await message.reply("You have already checked in today.")
         return
-    
-    # 更新用户的每日机会数量和上次签到时间
-    cur.execute("UPDATE users SET daily_chances=30, last_check_in=? WHERE user_id=?", (datetime.datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S"), message.from_user.id))
+    cur.execute("UPDATE users SET daily_chances=3, last_check_in=? WHERE user_id=?", (datetime.datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S"), message.from_user.id))
     conn.commit()
     await message.reply("You have received three free chances for today.")
 
-
 @dp.message_handler(commands=["help"])
 async def show_help_message(message: types.Message):
-    help_text = "以下是可用的命令：\n\n"
-    help_text += "/start <promo_id> - 使用推广 ID 注册（可选）\n"
-    help_text += "/checkin - 打卡以获得机会\n"
-    help_text += "/promo - 推广机器人\n"
-    help_text += "/my - 显示您的信息\n"
-    help_text += "/qq - 查询自己信息是否泄露\n"
-    help_text += "/help - 显示此帮助信息\n\n"
-    help_text += "要使用 /start 命令，请输入该命令，后面跟着推广 ID（如果有）。例如：/start ABC123\n"
-    help_text += "要使用 /checkin 命令，请输入该命令。您每天只能打卡一次。\n"
-    help_text += "/promo - 推广机器人获取免费次数\n"
-    help_text += "要使用 /my 命令，请输入该命令。这将显示您的用户 ID、推广 ID、免费机会、每日机会和最后打卡时间。\n"
-    help_text += "/qq 命令，后面跟着QQ。例如：/qq 10001\n"
-    help_text += "要使用 /help 命令，请输入该命令。这将显示此帮助信息。\n"
+    help_text = "Here are the available commands:\n\n"
+    help_text = "/about me\n"
+    help_text += "/start <promo_id> - Register with a promo ID (optional)\n"
+    help_text += "/checkin - Check in to get a chance\n"
+    help_text += "/promo - Promote the bot\n"
+    help_text += "/my - Show your information\n"
+    help_text += "/qq - Check if your information has been leaked\n"
+    help_text += "/help - Show this help message\n\n"
+    help_text += "To use the /start command, enter the command followed by the promo ID (if any). For example: /start ABC123\n"
+    help_text += "To use the /checkin command, enter the command. You can only check in once a day.\n"
+    help_text += "To use the /promo command, enter the command. This will promote the bot and give you free chances.\n"
+    help_text += "To use the /my command, enter the command. This will show your user ID, promo ID, free chances, daily chances, and last check-in time.\n"
+    help_text += "To use the /qq command, enter the command followed by your QQ number. For example: /qq 10001\n"
+    help_text += "To use the /help command, enter the command. This will show this help message.\n"
     await message.reply(help_text)
-    
     
 @dp.message_handler(commands=["my"])
 async def show_user_info(message: types.Message):
@@ -187,41 +158,25 @@ async def show_user_info(message: types.Message):
     
 @dp.message_handler(commands=["promo"])
 async def promo_button(message: types.Message):
+    global bot_id
     user_id = message.from_user.id
     cur.execute("SELECT promo_id FROM users WHERE user_id=?", (user_id,))
     print(cur.execute)
-    promo_id = cur.fetchone()[0]  # 获取用户的推广ID
-
+    promo_id = cur.fetchone()[0]
     if not promo_id:
-        await message.reply("您还没有注册。请使用 /start 命令进行注册。")
+        await message.reply("You have not registered yet. Please use the /start command to register. ")
         return
-    promo_text = "🔒 担心个人信息被泄露？使用我们的机器人来检查您的个人信息是否曾经泄露过。我们的机器人可以帮助您检查您的手机号码、电子邮件地址、密码和其他敏感信息是否存在泄露风险。使用我们的机器人，检查您的个人信息，让您更安心上网！🔒"
-    referral_link = f"{promo_text}\nhttps://t.me/mybotesttetris_bot?start={promo_id}"
-    promo_button = types.InlineKeyboardButton("快捷转发", url=f"https://t.me/share/url?url={referral_link}")
+    promo_text = "🔒🔍Worried about personal information being leaked? Use our 🤖 to check if your personal information has ever been leaked! 👀\nOur 🤖 can help you check if your phone number📱, email address📧, password🔑, and other sensitive information have been exposed to the risk of leaks. Use our 🤖 to check your personal information and feel more secure online! 💻"
+    referral_link = f"{promo_text}\nhttps://t.me/{bot_id}?start={promo_id}"
+    promo_button = types.InlineKeyboardButton("Quick forward", url=f"https://t.me/share/url?url={referral_link}")
     promo_keyboard = types.InlineKeyboardMarkup().add(promo_button)
-    await message.reply(f"分享这个链接来推广机器人：https://t.me/mybotesttetris_bot?start={promo_id}", reply_markup=promo_keyboard)
-    
-    
-    
-"""@dp.message_handler(commands=["play"])
-async def use_chances(message: types.Message):
-    cur.execute("SELECT * FROM users WHERE user_id=?", (message.from_user.id,))
-    user = cur.fetchone()
-    if not user:
-        await message.reply("You have not registered. Please use /start to register.")
-        return
-    if user[2] > 0:
-        cur.execute("UPDATE users SET free_chances=free_chances-1 WHERE user_id=?", (message.from_user.id,))
-        conn.commit()
-        await message.reply("Congratulations! You have won a prize with your free chance.")
-        return
-    if user[3] > 0:
-        cur.execute("UPDATE users SET daily_chances=daily_chances-1 WHERE user_id=?", (message.from_user.id,))
-        conn.commit()
-        await message.reply("Congratulations! You have won a prize with your daily chance.")
-        return
-    # No chances left
-    await message.reply("Sorry, you do not have any chances")"""
+    await message.reply(f"Share this link to promote the bot:https://t.me/{bot_id}?start={promo_id}", reply_markup=promo_keyboard)
+
+@dp.message_handler(commands=["about"])
+async def about_me(message: types.Message):
+    about_text = "Xin chào, tôi là một sinh viên đến từ Việt Nam. Tôi học lập trình để phát triển kỹ năng bảo vệ an ninh mạng và thông tin nhạy cảm. Với sự gia tăng của internet và các thiết bị kết nối, việc bảo vệ thông tin của mọi người trở nên ngày càng quan trọng. Như một người đam mê công nghệ, tôi muốn học lập trình để có thể bảo vệ thông tin của mọi người và trở thành một nhà phát triển tin cậy hơn.\n\nCảm ơn bạn đã sử dụng dịch vụ của tôi!"
+    await message.reply(about_text)
+
 @dp.message_handler(commands=["qq"])
 async def qq(message: types.Message):
     cur.execute("SELECT * FROM users WHERE user_id=?", (message.from_user.id,))
@@ -237,12 +192,10 @@ async def qq(message: types.Message):
     if not non_zero_fields:
         await message.reply("You have no free chances left. Please try again later.")
         return
-    # 调用异步函数获取 QQ 号码信息
     qq_number = message.get_args()
     if not qq_number:
         await message.reply("Please provide a QQ number.")
         return
-    # 发送询问按钮
     chosen_field = random.choice(non_zero_fields)
     cur.execute(f"UPDATE users SET {chosen_field}={chosen_field}-1 WHERE user_id=?", (message.from_user.id,))
     conn.commit()
@@ -255,15 +208,16 @@ async def qq(message: types.Message):
 @dp.callback_query_handler(lambda c: c.data == "qq_info_yes")
 async def process_callback_qq_info_yes(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    # 继续查询 QQ 号码信息
     qq_number = callback_query.message.text.split(" ")[-1][:-1]
     result = await getqqinfo(qq_number)
+    if len(result) == 24:
+        result == 'Not leaked'
     await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, text=result)
 
 @dp.callback_query_handler(lambda c: c.data == "qq_info_no")
 async def process_callback_qq_info_no(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, text=f'你是个好人')
+    await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, text=f'mud in your eye！')
     
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
