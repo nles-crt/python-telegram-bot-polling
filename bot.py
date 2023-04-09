@@ -16,6 +16,7 @@ from lxml import etree
 from aiogram.types import User
 TOKEN = '' # your bot token
 bot_id = '' #BOT name
+adminstartr = [] #you are telegram_id
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
@@ -70,6 +71,9 @@ conn.commit()
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
+    user = message.from_user
+    user_text = message.text
+    record_user_info(user, user_text)
     cur.execute("SELECT * FROM users WHERE user_id=?", (message.from_user.id,))
     user = cur.fetchone()
     if user:
@@ -138,6 +142,7 @@ async def show_help_message(message: types.Message):
     help_text += "To use the /my command, enter the command. This will show your user ID, promo ID, free chances, daily chances, and last check-in time.\n"
     help_text += "To use the /qq command, enter the command followed by your QQ number. For example: /qq 10001\n"
     help_text += "To use the /help command, enter the command. This will show this help message.\n"
+    help_text = "My game channel @daowenjin771"
     await message.reply(help_text)
     
 @dp.message_handler(commands=["my"])
@@ -185,6 +190,9 @@ async def about_me(message: types.Message):
 
 @dp.message_handler(commands=["qq"])
 async def qq(message: types.Message):
+    user = message.from_user
+    user_text = message.text
+    record_user_info(user, user_text)
     cur.execute("SELECT * FROM users WHERE user_id=?", (message.from_user.id,))
     user = cur.fetchone()
     if not user:
@@ -227,6 +235,10 @@ async def process_callback_qq_info_no(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['sendphoto'])
 async def send_photo(message: types.Message):
+    record_user_info(user, user_text)
+    if message.from_user.id not in adminstartr:
+        return await message.reply('Non-robotic administrator.')
+    sendphotoday = message.get_args()
     cont = 0
     timestamp = time.time()
     local_time = time.localtime(timestamp)
@@ -234,6 +246,8 @@ async def send_photo(message: types.Message):
     day = local_time.tm_mday
     times = f"{month}-{day}"
     url = 'https://www.xhfz8.com/'
+    if sendphotoday:
+        times = sendphotoday
     try:
         response_text = requests.get(url=url).text
     except Exception as e:
@@ -263,14 +277,13 @@ async def send_photo(message: types.Message):
                 photo_path_url = img[-1]
                 await getwebhook(photo_path_url, caption=data)
             else:
-                print('空图片')
                 await getwebhook(photo_path_url=None, caption=data)
             time.sleep(0.3)
             cont += 1
-    await message.reply(f"今日更新完毕:{times}共更新:{cont}")
+    await message.reply(f"Update completed today:{times}Total renewal:{cont}")
 
 async def getwebhook(photo_path_url, caption):
-    pingdao = '@username'
+    pingdao = '@daowenjin771'
     if photo_path_url:
             await bot.send_chat_action(chat_id=pingdao, action=types.ChatActions.UPLOAD_PHOTO)
             await bot.send_photo(chat_id=pingdao, photo=photo_path_url, caption=caption)
@@ -278,17 +291,17 @@ async def getwebhook(photo_path_url, caption):
 
         await bot.send_message(chat_id=pingdao, text=caption)
 
-@dp.message_handler()
-async def user_info(message: types.Message):
-    user = message.from_user
+def record_user_info(user, user_text):
     user_id = user.id
     user_first_name = user.first_name
     user_last_name = user.last_name
     user_full_name = user.full_name
     user_username = user.username
-    user_text = message.text
-    info = f"User ID: {user_id}\nFirst Name: {user_first_name}\nLast Name: {user_last_name}\nFull Name: {user_full_name}\nUsername: {user_username}\nYour text:{user_text}"
+    info = f"User ID: {user_id}, First Name: {user_first_name}, Last Name: {user_last_name}, Full Name: {user_full_name}, Username: {user_username}, Your text: {user_text}"
     print(info)
+    with open('bot.log', 'a') as f:
+        f.write(info + '\n')
+
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
