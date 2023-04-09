@@ -14,8 +14,8 @@ import time
 import requests
 from lxml import etree
 from aiogram.types import User
-TOKEN = '6290859152:AAF7KhxgW7ReuImLxy0gYL-WbCtx81SLkbo' # your bot token
-bot_id = 'mybotesttetris_bot' #BOT name
+TOKEN = '' # your bot token
+bot_id = '' #BOT name
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
