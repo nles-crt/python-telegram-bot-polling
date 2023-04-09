@@ -16,6 +16,7 @@ from lxml import etree
 from aiogram.types import User
 TOKEN = '' # your bot token
 bot_id = '' #BOT name
+channel_id = '' #you channel username
 adminstartr = [] #you are telegram_id
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -281,15 +282,13 @@ async def send_photo(message: types.Message):
             time.sleep(0.3)
             cont += 1
     await message.reply(f"Update completed today:{times}Total renewal:{cont}")
-
+    
 async def getwebhook(photo_path_url, caption):
-    pingdao = '@daowenjin771'
     if photo_path_url:
-            await bot.send_chat_action(chat_id=pingdao, action=types.ChatActions.UPLOAD_PHOTO)
-            await bot.send_photo(chat_id=pingdao, photo=photo_path_url, caption=caption)
+            await bot.send_chat_action(chat_id=channel_id, action=types.ChatActions.UPLOAD_PHOTO)
+            await bot.send_photo(chat_id=channel_id, photo=photo_path_url, caption=caption)
     else:
-
-        await bot.send_message(chat_id=pingdao, text=caption)
+        await bot.send_message(chat_id=channel_id, text=caption)
 
 def record_user_info(user, user_text):
     user_id = user.id
