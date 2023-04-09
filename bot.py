@@ -236,7 +236,6 @@ async def process_callback_qq_info_no(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=['sendphoto'])
 async def send_photo(message: types.Message):
-    record_user_info(user, user_text)
     if message.from_user.id not in adminstartr:
         return await message.reply('Non-robotic administrator.')
     sendphotoday = message.get_args()
