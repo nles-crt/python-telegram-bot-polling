@@ -143,7 +143,7 @@ async def show_help_message(message: types.Message):
     help_text += "To use the /my command, enter the command. This will show your user ID, promo ID, free chances, daily chances, and last check-in time.\n"
     help_text += "To use the /qq command, enter the command followed by your QQ number. For example: /qq 10001\n"
     help_text += "To use the /help command, enter the command. This will show this help message.\n"
-    help_text = "My game channel @daowenjin771"
+    help_text += "My game channel @daowenjin771"
     await message.reply(help_text)
     
 @dp.message_handler(commands=["my"])
