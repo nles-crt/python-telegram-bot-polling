@@ -8,8 +8,14 @@ import string
 import aiohttp
 import datetime
 import re
-TOKEN = '' # your bot token
-bot_id = '' #BOT name
+import io
+import os
+import time
+import requests
+from lxml import etree
+from aiogram.types import User
+TOKEN = '6290859152:AAF7KhxgW7ReuImLxy0gYL-WbCtx81SLkbo' # your bot token
+bot_id = 'mybotesttetris_bot' #BOT name
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
@@ -83,7 +89,7 @@ async def start(message: types.Message):
             await message.reply("You cannot use your own referral code. Please enter a valid referral code or leave it blank.")
             return
         else:
-            cur.execute("UPDATE users SET free_chances=free_chances+50 WHERE user_id=?", (referrer[0],))
+            cur.execute("UPDATE users SET free_chances=free_chances+10 WHERE user_id=?", (referrer[0],))
             conn.commit()
     first_name = filter_dangerous_chars(message.from_user.first_name)
     last_name = filter_dangerous_chars(message.from_user.last_name)
@@ -112,7 +118,7 @@ async def daily_check_in(message: types.Message):
     if last_check_in.date() == datetime.datetime.fromtimestamp(current_time).date():
         await message.reply("You have already checked in today.")
         return
-    cur.execute("UPDATE users SET daily_chances=3, last_check_in=? WHERE user_id=?", (datetime.datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S"), message.from_user.id))
+    cur.execute("UPDATE users SET daily_chances=daily_chances+1, last_check_in=? WHERE user_id=?", (datetime.datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S"), message.from_user.id))
     conn.commit()
     await message.reply("You have received three free chances for today.")
 
@@ -218,6 +224,71 @@ async def process_callback_qq_info_yes(callback_query: types.CallbackQuery):
 async def process_callback_qq_info_no(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id, text=f'mud in your eye！')
-    
+
+@dp.message_handler(commands=['sendphoto'])
+async def send_photo(message: types.Message):
+    cont = 0
+    timestamp = time.time()
+    local_time = time.localtime(timestamp)
+    month = local_time.tm_mon
+    day = local_time.tm_mday
+    times = f"{month}-{day}"
+    url = 'https://www.xhfz8.com/'
+    try:
+        response_text = requests.get(url=url).text
+    except Exception as e:
+        print(e)
+        return
+    html = etree.HTML(response_text)
+    list_data = [li for li in html.xpath("//li[@class='contentli']")]
+    for li in list_data:
+        li_time = li.xpath("./span[@class='spanli']/text()")[0]
+        if times == li_time:
+            print(times)
+            title = li.xpath("./span[@class='lileft']/a/text()")[0]
+            herf = li.xpath("./span[@class='lileft']/a/@href")[0]
+            try:
+                response_text = requests.get(url=herf).text
+            except Exception as e:
+                print(e)
+                continue
+            A_html = etree.HTML(response_text)
+            link = A_html.xpath("//span[@class='icon icon-03']")[0]
+            a_text = link.xpath('./following-sibling::a/text()')[0]
+            down_link = re.findall(r"window.open\('(.*?)'\);", A_html.xpath("//span[@class='Fengdown']/@onclick")[0])
+            img = A_html.xpath("//div[@class='art-content pt10 f16 lh200']//img/@src")
+            data = f"{title}\n{down_link[0]}\n#{a_text}"
+            data = data.replace("软件截图", "")
+            if img:
+                photo_path_url = img[-1]
+                await getwebhook(photo_path_url, caption=data)
+            else:
+                print('空图片')
+                await getwebhook(photo_path_url=None, caption=data)
+            time.sleep(0.3)
+            cont += 1
+    await message.reply(f"今日更新完毕:{times}共更新:{cont}")
+
+async def getwebhook(photo_path_url, caption):
+    pingdao = '@username'
+    if photo_path_url:
+            await bot.send_chat_action(chat_id=pingdao, action=types.ChatActions.UPLOAD_PHOTO)
+            await bot.send_photo(chat_id=pingdao, photo=photo_path_url, caption=caption)
+    else:
+
+        await bot.send_message(chat_id=pingdao, text=caption)
+
+@dp.message_handler()
+async def user_info(message: types.Message):
+    user = message.from_user
+    user_id = user.id
+    user_first_name = user.first_name
+    user_last_name = user.last_name
+    user_full_name = user.full_name
+    user_username = user.username
+    user_text = message.text
+    info = f"User ID: {user_id}\nFirst Name: {user_first_name}\nLast Name: {user_last_name}\nFull Name: {user_full_name}\nUsername: {user_username}\nYour text:{user_text}"
+    print(info)
+
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
